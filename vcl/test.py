@@ -48,7 +48,7 @@ Ho4 = Matrix([
 
 # Matrice P 
 P = Matrix([
-    [nx, px, ax, px],
+    [nx, ox, ax, px],
     [ny, oy, ay, py],
     [nz, oz, az, pz],
     [0, 0, 0, 1]])
@@ -58,15 +58,15 @@ P = Matrix([
 # 
 # Exemple: eq1 = H1*H2*H3, eq2 = P*H4.inv()
 
-eq1 = H1*H2*H3
-eq2 = P*H4.inv()
+eq1 = P
+eq2 = H1*H2*H3*H4
 ############################################
 
 # Création de l'équalité
 eq = Eq(simplify(eq1), simplify(eq2))
 
 # Transforme la réponse en code LaTeX et la copy sur le presse-papier
-eq_latex = str(latex(eq)).replace('\sin{', 's_{').replace('\cos{','c_{').replace('\sin^{2}{','s^2_{').replace('\cos^{2}{','c^2_{')
+eq_latex = str(latex(eq)).replace('\sin{', 's_{').replace('\cos{','c_{').replace('\sin^{2}{','s^2_{').replace('\cos^{2}{','c^2_{').replace('\left(','').replace('right)','dummytext').replace(' \dummytext','')
 print("latex version printed to clipboard")
 pyperclip.copy(eq_latex)
 
