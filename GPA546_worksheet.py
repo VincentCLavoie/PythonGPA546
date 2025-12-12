@@ -104,6 +104,7 @@ Ho4 = sp.Matrix([
 ])
 
 """
+
 H_outil_R = sp.Matrix([
     [sp.cos(ez)*sp.cos(ey), sp.cos(ez)*sp.sin(ey)*sp.sin(ex)-sp.sin(ez)*sp.cos(ex), sp.cos(ez)*sp.sin(ey)*sp.cos(ex)+sp.sin(ez)*sp.sin(ex), x],
     [sp.sin(ez)*sp.cos(ey), sp.sin(ez)*sp.sin(ey)*sp.sin(ex)+sp.cos(ez)*sp.cos(ex), sp.sin(ez)*sp.sin(ey)*sp.cos(ex)-sp.cos(ez)*sp.sin(ex), y],
@@ -218,6 +219,8 @@ def build_matrix_equalities():
         "Hoa": (Hoa, Hoa),
         "Ho4": (Ho4, Ho4),
         "H0a": (H0a, H0a),
+        "Jacobien": (J,J),
+
 
     }
 
