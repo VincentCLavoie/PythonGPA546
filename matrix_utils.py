@@ -1,4 +1,3 @@
-import numpy as np
 import sympy as sp
 
 def txyz(x, y, z):

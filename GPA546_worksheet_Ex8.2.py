@@ -77,16 +77,16 @@ def latex_robotic(expr):
 # ==============================================================================
 # ROBOT PARAMETERS
 # ==============================================================================
-n_joints = 4
-robconfig = ("R", "R", "P", "R")
-H10 = dh(theta1, 363, 300, 0)
-H21 = dh(theta2, 0, 260, sp.pi)
+n_joints = 3
+robconfig = ("R", "R", "P")
+H10 = dh(theta1, 550, 0, -sp.pi/2)
+H21 = dh(theta2, 553, 0, -sp.pi/2)
 H32 = dh(0, d3, 0, 0)
-H43 = dh(theta4, 0, 0, 0)
+H43 = dh(0, 0, 0, 0)
 
 H0a = sp.Matrix([
-    [0, 1, 0, 0],
-    [-1, 0, 0, 0],
+    [0, -1, 0, 0],
+    [1, 0, 0, 600],
     [0, 0, 1, 0],
     [0, 0, 0, 1]
 ])
@@ -94,7 +94,7 @@ H0a = sp.Matrix([
 Ho4 = sp.Matrix([
     [0, 1, 0, 0],
     [-1, 0, 0, 0],
-    [0, 0, 1, 37.5],
+    [0, 0, 1, 90],
     [0, 0, 0, 1]
 ])
 
@@ -113,6 +113,9 @@ P_sym = sp.Matrix([
     [nz, oz, az, pz],
     [0, 0, 0, 1]
 ])
+
+P_sym2=H0a.inv()*P_sym*Ho4.inv()
+
 
 # ==============================================================================
 # CACHED KINEMATICS COMPUTATION
@@ -206,23 +209,20 @@ J = compute_jacobian()
 def build_matrix_equalities():
     """Build all matrix equalities once and cache them."""
     return {
-        "Hoa = P_sym":              (Hoa, P_sym),
-        "H40 = H0a.inv()*P_sym*Ho4.inv()":              (H40, H0a.inv()*P_sym*Ho4.inv()),
-
-        "H41 = H10.inv() * H0a.inv()*P_sym*Ho4.inv()":  (H41, H10.inv() * H0a.inv()*P_sym*Ho4.inv()),
-        "H30 = H0a.inv()*P_sym*Ho4.inv() * H43.inv()":  (H30, H0a.inv()*P_sym*Ho4.inv() * H43.inv()),
-        "H42 = H20.inv() * H0a.inv()*P_sym*Ho4.inv()":  (H42, H20.inv() * H0a.inv()*P_sym*Ho4.inv()),
-        "H43 = H30.inv() * P_sym":  (H43, H30.inv() * H0a.inv()*P_sym*Ho4.inv()),
-        "H20 = H0a.inv()*P_sym*Ho4.inv() * H42.inv()":  (H20, H0a.inv()*P_sym*Ho4.inv() * H42.inv()),
-        "H10 = H0a.inv()*P_sym*Ho4.inv() * H41.inv()":  (H10, H0a.inv()*P_sym*Ho4.inv() * H41.inv()),
-        "H31 = H10.inv() * H0a.inv()*P_sym*Ho4.inv() * H43.inv()": (H31, H10.inv() * H0a.inv()*P_sym*Ho4.inv() * H43.inv()),
-        "H21 = H10.inv() * H0a.inv()*P_sym*Ho4.inv() * H42.inv()": (H21, H10.inv() * H0a.inv()*P_sym*Ho4.inv() * H42.inv()),
-        "H32 = H20.inv() * H0a.inv()*P_sym*Ho4.inv() * H43.inv()": (H32, H20.inv() * H0a.inv()*P_sym*Ho4.inv() * H43.inv()),
-        "Hoa": (Hoa, Hoa),
-        "Ho4": (Ho4, Ho4),
-        "H0a": (H0a, H0a),
-        "Jacobien": (J,J),
-
+        "Hoa": (Hoa, P_sym),
+        "H_outil_4": (Ho4, Ho4),
+        "H_0_atelier": (H0a, H0a),
+        "STOP":                     (H40, P_sym2),
+        "H40 = P_sym":              (H40, P_sym),
+        "H41 = H10.inv() * P_sym":  (H41, H10.inv() * P_sym),
+        "H30 = P_sym * H43.inv()":  (H30, P_sym * H43.inv()),
+        "H42 = H20.inv() * P_sym":  (H42, H20.inv() * P_sym),
+        "H43 = H30.inv() * P_sym":  (H43, H30.inv() * P_sym),
+        "H20 = P_sym * H42.inv()":  (H20, P_sym * H42.inv()),
+        "H10 = P_sym * H41.inv()":  (H10, P_sym * H41.inv()),
+        "H31 = H10.inv() * P_sym * H43.inv()": (H31, H10.inv() * P_sym * H43.inv()),
+        "H21 = H10.inv() * P_sym * H42.inv()": (H21, H10.inv() * P_sym * H42.inv()),
+        "H32 = H20.inv() * P_sym * H43.inv()": (H32, H20.inv() * P_sym * H43.inv()),
     }
 
 matrix_equalities = build_matrix_equalities()
@@ -238,6 +238,8 @@ def break_matrix_equality(lhs, rhs):
             eqs.append(sp.Eq(lhs[i, j], rhs[i, j]))
     return eqs
 
+
+
 # ==============================================================================
 # STREAMLIT UI
 # ==============================================================================
@@ -252,7 +254,7 @@ eq_name = st.selectbox("Select a matrix equality", list(matrix_equalities.keys()
 lhs, rhs = matrix_equalities[eq_name]
 
 st.subheader("Matrix equality")
-st.latex(latex_robotic(sp.simplify(lhs)) + " = " + latex_robotic(sp.simplify(rhs)))
+st.latex(latex_robotic(sp.trigsimp(lhs)) + " = " + latex_robotic(sp.trigsimp(rhs)))
 
 # 2) Element-wise equalities (always shown) with up to two selectable equations
 st.subheader("Element-wise equalities")
@@ -274,7 +276,7 @@ for idx, eq in enumerate(scalar_eqs):
         if eq is True or eq == True:
             st.latex(r"0 = 0")
         else:
-            st.latex(latex_robotic(sp.simplify(eq.lhs)) + " = " + latex_robotic(sp.simplify(eq.rhs)))
+            st.latex(latex_robotic(sp.trigsimp(eq.lhs)) + " = " + latex_robotic(sp.trigsimp(eq.rhs)))
 
 # Limit to at most two equations
 if len(selected_eq_indices) > 2:
@@ -287,7 +289,6 @@ if len(selected_eq_indices) > 2:
 with st.sidebar:
     st.header("Solve")
     solve_clicked = st.button("Solve", use_container_width=True)
-
     st.markdown("**Variables to solve for**")
 
     variable_options = [
@@ -319,7 +320,6 @@ with st.sidebar:
         st.session_state["selected_vars"][label] = checked
         if checked:
             selected_vars.append(sym)
-
 
 # ==============================================================================
 # SOLVE AND DISPLAY RESULTS AT THE TOP
@@ -356,7 +356,7 @@ with solution_box:
                             st.latex(
                                 sp.latex(target)
                                 + " = "
-                                + latex_robotic(sp.simplify(sol[0][target]))
+                                + latex_robotic(sp.trigsimp(sol[0][target]))
                             )
                         else:
                             idx_str = ", ".join(
@@ -368,7 +368,6 @@ with solution_box:
                                 f"No solution for {sp.latex(target)} "
                                 f"using equations {idx_str}."
                             )
-
 # ==============================================================================
 # JACOBIAN DISPLAY AT BOTTOM
 # ==============================================================================
@@ -382,6 +381,33 @@ st.latex(latex_robotic(J))
 # Compute and show det(J^T J)
 JTJ = J.T * J
 det_JTJ = sp.simplify(JTJ.det())
+det_JTJ2 = sp.trigsimp(sp.factor(JTJ.det()))
 
 st.markdown(r"**Determinant $\det(J^T J)$**")
 st.latex(latex_robotic(det_JTJ))
+st.latex(latex_robotic(det_JTJ2))
+
+st.subheader(r"det($J^T J$) and its zeros")
+
+def zeros_of_det_JTJ(var):
+    """
+    Solve det(J^T J) = 0 for the given variable `var`
+    (e.g. var = d3 or theta2).
+
+    Returns a list of SymPy solutions (possibly parametric).
+    """
+    # Set up equation det(J^T J) = 0 and solve for `var`
+    sols = sp.solve(sp.Eq(det_JTJ, 0), var, dict=True)
+    return sols
+
+
+if st.button("Find zeros of det($J^T J$) with respect to $d_3$"):
+    roots_d3 = zeros_of_det_JTJ(d3)
+    if roots_d3:
+        for sol in roots_d3:
+            st.latex(r"d_3 = " + latex_robotic(sol[d3]))
+    else:
+        st.write("No symbolic zeros found for det(J^T J) with respect to d3.")
+
+
+

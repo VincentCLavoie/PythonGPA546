@@ -1,6 +1,6 @@
 import sympy as sp
 import numpy as np
-from matrix_utils import submat, dh
+from matrix_utils import submat, dh, rx, ry, rz, txyz
 import streamlit as st
 
 # ==============================================================================
@@ -77,13 +77,18 @@ def latex_robotic(expr):
 # ==============================================================================
 # ROBOT PARAMETERS
 # ==============================================================================
-n_joints = 3
-robconfig = ("R", "R", "P")
-H10 = dh(theta1, 550, 0, -sp.pi/2)
-H21 = dh(theta2, 553, 0, -sp.pi/2)
-H32 = dh(0, d3, 0, 0)
-H43 = dh(0, 0, 0, 0)
+n_joints = 4
+robconfig = ("R", "P", "P","R")
+H10 = dh(theta1, 0, 0, 0)
+H21 = dh(-sp.pi/2, d2+405, 148, -sp.pi/2)
+H32 = dh(0, d3+279.5, 0, sp.pi/2)
+H43 = dh(theta4+(sp.pi/2), 0, 58, 0)
 
+
+H0a=txyz(-600,0,0)
+Ho4=txyz(75,0,0)*ry(sp.pi/2)
+
+"""
 H0a = sp.Matrix([
     [0, -1, 0, 0],
     [1, 0, 0, 600],
@@ -98,6 +103,7 @@ Ho4 = sp.Matrix([
     [0, 0, 0, 1]
 ])
 
+"""
 H_outil_R = sp.Matrix([
     [sp.cos(ez)*sp.cos(ey), sp.cos(ez)*sp.sin(ey)*sp.sin(ex)-sp.sin(ez)*sp.cos(ex), sp.cos(ez)*sp.sin(ey)*sp.cos(ex)+sp.sin(ez)*sp.sin(ex), x],
     [sp.sin(ez)*sp.cos(ey), sp.sin(ez)*sp.sin(ey)*sp.sin(ex)+sp.cos(ez)*sp.cos(ex), sp.sin(ez)*sp.sin(ey)*sp.cos(ex)-sp.cos(ez)*sp.sin(ex), y],
@@ -113,6 +119,9 @@ P_sym = sp.Matrix([
     [nz, oz, az, pz],
     [0, 0, 0, 1]
 ])
+
+P_sym2=H0a.inv()*P_sym*Ho4.inv()
+
 
 # ==============================================================================
 # CACHED KINEMATICS COMPUTATION
@@ -154,6 +163,10 @@ def compute_jacobian():
     p1 = submat(Hoa, 0, 3, 2, 3) - submat(H0a * H10, 0, 3, 2, 3)
     p2 = submat(Hoa, 0, 3, 2, 3) - submat(H0a * H10 * H21, 0, 3, 2, 3)
     p3 = submat(Hoa, 0, 3, 2, 3) - submat(H0a * H10 * H21 * H32, 0, 3, 2, 3)
+    #sp.pprint(e1)
+    #sp.pprint(sp.simplify(p1))
+    #sp.pprint(e2)
+    #sp.pprint(sp.simplify(p2))
 
     axes = [e0, e1, e2, e3]
     ps = [p0, p1, p2, p3]
@@ -163,8 +176,11 @@ def compute_jacobian():
 
     for i in range(n_joints):
         if robconfig[i] == "R":
-            jl = axes[i].cross(ps[i])
+            jl = axes[i].cross(sp.simplify(ps[i]))
             ja = axes[i]
+            print("Joint Rotoide")
+            sp.pprint(jl)
+            sp.pprint(ja)
         elif robconfig[i] == "P":
             jl = axes[i]
             ja = sp.Matrix([0, 0, 0])
@@ -199,18 +215,22 @@ J = compute_jacobian()
 def build_matrix_equalities():
     """Build all matrix equalities once and cache them."""
     return {
-        "H40 = P_sym":              (H40, P_sym),
-        "H41 = H10.inv() * P_sym":  (H41, H10.inv() * P_sym),
-        "H30 = P_sym * H43.inv()":  (H30, P_sym * H43.inv()),
-        "H42 = H20.inv() * P_sym":  (H42, H20.inv() * P_sym),
-        "H43 = H30.inv() * P_sym":  (H43, H30.inv() * P_sym),
-        "H20 = P_sym * H42.inv()":  (H20, P_sym * H42.inv()),
-        "H10 = P_sym * H41.inv()":  (H10, P_sym * H41.inv()),
-        "H31 = H10.inv() * P_sym * H43.inv()": (H31, H10.inv() * P_sym * H43.inv()),
-        "H21 = H10.inv() * P_sym * H42.inv()": (H21, H10.inv() * P_sym * H42.inv()),
-        "H32 = H20.inv() * P_sym * H43.inv()": (H32, H20.inv() * P_sym * H43.inv()),
-        "Hoa": (Hoa, Hoa),
+        "Hoa": (Hoa, P_sym),
+        "H_outil_4": (Ho4, Ho4),
+        "H_0_atelier": (H0a, H0a),
+        "H40 = P_sym2":              (H40, P_sym2),
+        "STOP":                     (H40, P_sym2),
+        "H41 = H10.inv() * P_sym2":  (H41, H10.inv() * P_sym2),
+        "H30 = P_sym2 * H43.inv()":  (H30, P_sym2 * H43.inv()),
+        "H42 = H20.inv() * P_sym2":  (H42, H20.inv() * P_sym2),
+        "H43 = H30.inv() * P_sym2":  (H43, H30.inv() * P_sym2),
+        "H20 = P_sym2 * H42.inv()":  (H20, P_sym2 * H42.inv()),
+        "H10 = P_sym2 * H41.inv()":  (H10, P_sym2 * H41.inv()),
+        "H31 = H10.inv() * P_sym2 * H43.inv()": (H31, H10.inv() * P_sym2 * H43.inv()),
+        "H21 = H10.inv() * P_sym2 * H42.inv()": (H21, H10.inv() * P_sym2 * H42.inv()),
+        "H32 = H20.inv() * P_sym2 * H43.inv()": (H32, H20.inv() * P_sym2 * H43.inv()),
 
+        
     }
 
 matrix_equalities = build_matrix_equalities()
@@ -275,7 +295,8 @@ if len(selected_eq_indices) > 2:
 with st.sidebar:
     st.header("Solve")
     solve_clicked = st.button("Solve", use_container_width=True)
-
+    combine_clicked = st.button("Square & Sum 2 eqs", use_container_width=True)
+    
     st.markdown("**Variables to solve for**")
 
     variable_options = [
@@ -355,3 +376,65 @@ with solution_box:
                                 f"No solution for {sp.latex(target)} "
                                 f"using equations {idx_str}."
                             )
+# ==============================================================================
+# JACOBIAN DISPLAY AT BOTTOM
+# ==============================================================================
+
+st.subheader("Jacobian and det($J^T J$)")
+
+# Show J
+st.markdown("**Jacobian $J$**")
+st.latex(latex_robotic(J))
+
+# Compute and show det(J^T J)
+JTJ = J.T * J
+det_JTJ = sp.simplify(JTJ.det())
+
+st.markdown(r"**Determinant $\det(J^T J)$**")
+st.latex(latex_robotic(det_JTJ))
+
+# ==============================================================================
+# SQUARE & SUM OF TWO SELECTED EQUATIONS
+# ==============================================================================
+if combine_clicked:
+    if len(selected_eq_indices) != 2:
+        st.warning("Please select exactly two element-wise equations (two checkboxes).")
+    else:
+        idx1, idx2 = selected_eq_indices
+        eq1 = scalar_eqs[idx1]
+        eq2 = scalar_eqs[idx2]
+
+        i1, j1 = divmod(idx1, 4)
+        i2, j2 = divmod(idx2, 4)
+
+        if (eq1 is True or eq1 == True) or (eq2 is True or eq2 == True):
+            st.warning("Selected equations must be non-trivial (not identically true).")
+        else:
+            # Square both sides
+            lhs1_sq = eq1.lhs**2
+            rhs1_sq = eq1.rhs**2
+            lhs2_sq = eq2.lhs**2
+            rhs2_sq = eq2.rhs**2
+
+            # Sum LHS and RHS
+            lhs_sum = sp.simplify(lhs1_sq + lhs2_sq)
+            rhs_sum = sp.simplify(rhs1_sq + rhs2_sq)
+
+            st.markdown("### Squared & summed equations")
+            st.latex(
+                rf"({i1+1},{j1+1}):\quad {latex_robotic(eq1.lhs)} = {latex_robotic(eq1.rhs)}"
+            )
+            st.latex(
+                rf"({i2+1},{j2+1}):\quad {latex_robotic(eq2.lhs)} = {latex_robotic(eq2.rhs)}"
+            )
+
+            st.markdown("**After squaring and summing:**")
+            st.latex(
+                latex_robotic(lhs1_sq) + " + " + latex_robotic(lhs2_sq)
+                + " = "
+                + latex_robotic(rhs1_sq) + " + " + latex_robotic(rhs2_sq)
+            )
+            st.markdown("**Simplified form:**")
+            st.latex(
+                latex_robotic(lhs_sum) + " = " + latex_robotic(rhs_sum)
+            )
